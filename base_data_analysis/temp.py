@@ -1,3 +1,4 @@
+import pandas as pd
 import numpy as np
 import itertools
 
@@ -7,18 +8,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 import torch
 
-class keybert():
-    def __init__(self, doc, model_path) -> None:
-        self.doc = doc
-        pass
+
+file = pd.read_csv(r'data\blockchain.csv', skiprows=4)
+
+doc = file['요약'][0]
 
 
-
-
-
-doc = """
-본 발명은 디지털 트윈을 이용하여 양식장을 운영 및 관리하는 것을 목적으로 한다. 보다 구체적으로는 실제 양식장 환경 상태와 동일한 가상의 디지털 트윈 양식장을 생성하여 사용자가 시뮬레이션을 수행하는 것을 목적으로 한다. 즉, 실제 양식장과 동일한 가상의 디지털 트윈 양식장을 형성하여, 이를 통해 실제 양식장을 관리할 수 있는 시스템 및 방법을 제공한다. 또한, 인공지능 시스템을 탑재하여 사용자의 개입 없이도 가상의 양식장 시뮬레이션을 통해 최적의 개선조건을 도출하고, 이를 바탕으로 실제 양식장을 관리할 수 있으며, 시뮬레이션을 통해 도출된 최적의 개선조건을 사용자가 확인하고 제어할 수도 있다.
-"""
 
 # POS tagging
 okt = Okt()
@@ -30,28 +25,30 @@ print('품사 태깅 10개만 출력 :',tokenized_doc[:10])
 print('명사 추출 :',tokenized_nouns)
 
 
-# unigram, bigram, trigram extraction
+# 3개의 단어 묶음인 단어구 추출
 n_gram_range = (1, 2)
+stop_words = "english"
 
-count = CountVectorizer(ngram_range=n_gram_range).fit([tokenized_nouns])
+count = CountVectorizer(ngram_range=n_gram_range, stop_words=stop_words).fit([doc])
 candidates = count.get_feature_names_out()
 
 print('trigram 개수 :',len(candidates))
 print('trigram 다섯개만 출력 :',candidates[:5])
 
 
-# SBERT load
-model = SentenceTransformer('sentence-transformers/xlm-r-100langs-bert-base-nli-stsb-mean-tokens')
+# # SBERT load
+# model = SentenceTransformer('sentence-transformers/xlm-r-100langs-bert-base-nli-stsb-mean-tokens')
+
+
+# # model save (all model)
+# torch.save(model, 'SBERT_model.pt')
+
+# model load (all model)
+model = torch.load('SBERT_model.pt') 
 
 # get embedding
 doc_embedding = model.encode([doc])
 candidate_embeddings = model.encode(candidates)
-
-# model save (all model)
-torch.save(model, 'SBERT_model.pt')
-
-# model load (all model)
-model = torch.load('SBERT_model.pt') 
 
 # extraction top 5 keyword
 top_n = 5
@@ -110,7 +107,7 @@ def similarity_with_doc(doc_embedding, words_embeddings, words):
     return embedding_dict
 
 # top n words extraciton with MMR
-words = mmr(doc_embedding, candidate_embeddings, candidates, top_n=10, diversity=0.9)
+words = mmr(doc_embedding, candidate_embeddings, candidates, top_n=10, diversity=0.5)
 print(words)
 # get words embedding & similarity
 words_embedding = get_embedding(model, words)
